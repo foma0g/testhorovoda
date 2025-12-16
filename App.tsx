@@ -12,6 +12,10 @@ const App: React.FC = () => {
   const lastScrollTime = useRef(0);
   const scrollCooldown = 500; // ms
 
+  // Refs for touch handling
+  const touchStartY = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
+
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % MONSTERS.length);
   }, []);
@@ -41,6 +45,35 @@ const App: React.FC = () => {
     return () => window.removeEventListener('wheel', handleWheel);
   }, [handleNext, handlePrev]);
 
+  // Touch Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchEndY.current = null; // Reset end position
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndY.current = e.targetTouches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartY.current || !touchEndY.current) return;
+
+    const distance = touchStartY.current - touchEndY.current;
+    const isSwipeUp = distance > 50; // Threshold for swipe up
+    const isSwipeDown = distance < -50; // Threshold for swipe down
+    const now = Date.now();
+
+    if (now - lastScrollTime.current < scrollCooldown) return;
+
+    if (isSwipeUp) {
+      handleNext();
+      lastScrollTime.current = now;
+    } else if (isSwipeDown) {
+      handlePrev();
+      lastScrollTime.current = now;
+    }
+  };
+
   // Handle Clicking a card
   const handleCardClick = (monster: Monster) => {
     setSelectedMonster(monster);
@@ -51,7 +84,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen bg-stone-950 text-stone-100 overflow-hidden selection:bg-amber-900 selection:text-white">
+    <div 
+      className="relative w-full h-screen bg-stone-950 text-stone-100 overflow-hidden selection:bg-amber-900 selection:text-white touch-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none z-0">
@@ -64,12 +102,12 @@ const App: React.FC = () => {
       <div className="relative z-10 w-full h-full flex flex-col justify-between py-8">
         
         {/* Header */}
-        <header className="text-center pt-8 animate-[fadeInDown_1s_ease-out]">
-          <h1 className="mythos-font text-4xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-b from-amber-400 to-amber-800 drop-shadow-lg tracking-widest uppercase">
+        <header className="text-center pt-8 animate-[fadeInDown_1s_ease-out] pointer-events-none">
+          <h1 className="mythos-font text-3xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-b from-amber-400 to-amber-800 drop-shadow-lg tracking-widest uppercase">
             Славянский Хоровод
           </h1>
-          <p className="text-font text-stone-400 mt-2 text-lg">
-            Крутите колесо, чтобы призвать чудовищ
+          <p className="text-font text-stone-400 mt-2 text-sm md:text-lg">
+            Свайпайте или крутите колесо
           </p>
         </header>
 
@@ -99,13 +137,13 @@ const App: React.FC = () => {
         </main>
 
         {/* Controls / Footer */}
-        <footer className="text-center pb-8 z-20">
+        <footer className="text-center pb-8 z-20 pointer-events-auto">
            <div className="flex justify-center gap-8 text-stone-500 text-sm uppercase tracking-widest">
-             <button onClick={handlePrev} className="hover:text-amber-500 transition-colors flex items-center gap-2 group">
+             <button onClick={handlePrev} className="hover:text-amber-500 transition-colors flex items-center gap-2 group p-4">
                <span className="group-hover:-translate-x-1 transition-transform">←</span> Назад
              </button>
-             <span className="opacity-30">|</span>
-             <button onClick={handleNext} className="hover:text-amber-500 transition-colors flex items-center gap-2 group">
+             <span className="opacity-30 self-center">|</span>
+             <button onClick={handleNext} className="hover:text-amber-500 transition-colors flex items-center gap-2 group p-4">
                Вперед <span className="group-hover:translate-x-1 transition-transform">→</span>
              </button>
            </div>
